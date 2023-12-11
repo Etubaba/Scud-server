@@ -1,0 +1,916 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum PaymentType {
+  percentage
+  amount
+}
+
+enum PaymentMethod {
+  cash
+  card
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums List
+enum Provider {
+  email
+  phone
+}
+
+enum OtpType {
+  login
+  register
+  email
+  phone
+}
+
+enum TripStatus {
+  completed
+  cancelled
+  ongoing
+  unstarted
+}
+
+enum RideRequestStatus {
+  rejected
+  accepted
+}
+
+enum Verification {
+  failed
+  pending
+  verified
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum Channel {
+  mail
+  sms
+}
+
+enum Status {
+  sent
+  failed
+}
+
+enum TransactionType {
+  credit
+  debit
+}
+
+enum TransactionStatus {
+  success
+  pending
+  failed
+  declined
+  abandoned
+}
+
+enum Gateway {
+  paystack
+  flutterwave
+  tingg
+  stripe
+}
+
+enum DiscountType {
+  active
+  inactive
+  event
+  dangerzone
+  default
+}
+
+enum WithdrawalStatus {
+  pending
+  approved
+  rejected
+}
+
+enum PaymentMode {
+  card
+  cash
+}
+
+enum CancellledBy {
+  driver
+  rider
+}
+
+enum TemplateType {
+  otp
+  trip_completed
+  welcome
+  notification
+}
+
+enum TermsCategory {
+  driver
+  rider
+  general
+}
+
+// models List
+model VehicleType {
+  id           Int       @id @default(autoincrement())
+  name         String
+  minimum_year DateTime  @db.Timestamptz(3)
+  maximum_year DateTime? @db.Timestamptz(3)
+  is_active    Boolean
+
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  vehicles               Vehicle[]
+  fares                  Fare[]
+  VehicleTypeDriverPromo VehicleTypeDriverPromo[]
+  users                  User[]
+
+  @@map("vehicle_type")
+}
+
+model Country {
+  id              Int       @id @default(autoincrement())
+  name            String    @unique
+  iso3            String
+  iso2            String
+  numeric_code    String
+  phone_code      String
+  capital         String
+  currency        String
+  currency_name   String
+  currency_symbol String
+  region          String
+  subregion       String
+  timezones       Json
+  emoji           String
+  latitude        String?
+  longitude       String?
+  is_active       Boolean   @default(false)
+  created_at      DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime? @updatedAt
+
+  states State[]
+  banks  Bank[]
+
+  @@map("countries")
+}
+
+model State {
+  id         Int       @id @default(autoincrement())
+  name       String    @unique
+  country_id Int
+  code       String
+  latitude   String?
+  longitude  String?
+  is_active  Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  cities  City[]
+  country Country @relation(fields: [country_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  User    User[]
+
+  @@map("states")
+}
+
+model City {
+  id         Int       @id @default(autoincrement())
+  name       String    @unique
+  state_id   Int
+  latitude   String?
+  longitude  String?
+  is_active  Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  state    State      @relation(fields: [state_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  promos   Promo[]
+  Location Location[]
+
+  @@map("cities")
+}
+
+model User {
+  id                      Int       @id @default(autoincrement())
+  first_name              String?
+  last_name               String?
+  email                   String?   @unique
+  phone                   String    @unique
+  gender                  Gender?
+  email_verified          Boolean?
+  phone_verified          Boolean?
+  referral_code           String?   @unique
+  created_at              DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at              DateTime? @updatedAt
+  last_login              DateTime? @default(now())
+  provider                Provider  @default(phone)
+  state_id                Int?
+  picture                 String?
+  max_pickup_distance     Int?
+  account_balance         Decimal?  @default(0.00)
+  credibility_score       Int?
+  paystack_recipient_code String?
+  is_active               Boolean   @default(false)
+  vehicle_type_id         Int?
+  location_id             Int?
+  address                 String?
+
+  otps                  Otp[]
+  roles                 UserRoles[]
+  vehicles              Vehicle[]
+  license               License?
+  bank_account          BankAccount?
+  referrals             Referral[]           @relation(name: "referrals")
+  referrer              Referral?            @relation(name: "referrer")
+  drivers               AccountManagement[]  @relation("drivers")
+  manager               AccountManagement?   @relation("manager")
+  account_managers      Supervisor[]         @relation("account_managers")
+  supervisor            Supervisor?          @relation("supervisor")
+  UserNotifications     UserNotifications[]
+  promos                PromoUsers[]
+  requested_rides       RideRequest[]        @relation("rider")
+  recieved_request      RideRequest[]        @relation("driver")
+  trips_taken           Trip[]               @relation("rider")
+  trips                 Trip[]               @relation("driver")
+  sent_messages         Message[]            @relation("sentMessages")
+  received_messages     Message[]            @relation("receivedMessages")
+  withdrawal_requests   WithdrawalRequests[]
+  location              Location?            @relation(fields: [location_id], references: [id])
+  discounts             DiscountUsers[]
+  reviews               Review[]             @relation("reviewed")
+  reviews_recieved      Review[]             @relation("reviews")
+  timesonline           TimeOnline[]
+  transactions          Transaction[]        @relation()
+  state                 State?               @relation(fields: [state_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  vehicle_type          VehicleType?         @relation(fields: [vehicle_type_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  credibility_score_log CredibilityScore[]
+  driver_promos         UserDriverPromo[]
+
+  @@map("users")
+}
+
+model Message {
+  id           Int     @id @default(autoincrement())
+  content      String
+  is_read      Boolean @default(false)
+  sender_id    Int
+  recipient_id Int
+  sender       User    @relation("sentMessages", fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  recipient    User    @relation("receivedMessages", fields: [recipient_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("messages")
+}
+
+model Role {
+  id         Int       @id @default(autoincrement())
+  name       String    @unique
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  users       UserRoles[]
+  permissions RolePerissions[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id         Int       @id @default(autoincrement())
+  name       String    @unique
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  roles RolePerissions[]
+
+  @@map("permissions")
+}
+
+model UserRoles {
+  role_id     Int
+  user_id     Int
+  assigned_at DateTime @updatedAt @db.Timestamptz
+
+  role Role @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([user_id, role_id])
+  @@map("user_roles")
+}
+
+model RolePerissions {
+  role_id       Int
+  permission_id Int
+  assigned_at   DateTime @updatedAt @db.Timestamptz
+
+  role       Role       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([role_id, permission_id])
+  @@map("role_permissions")
+}
+
+model Otp {
+  id         Int       @id @default(autoincrement())
+  used       Boolean   @default(false)
+  token      String
+  expiry     DateTime
+  type       OtpType
+  user_id    Int
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("otps")
+}
+
+model Vehicle {
+  id               Int          @id @default(autoincrement())
+  user_id          Int
+  vehicle_brand_id Int
+  vehicle_type_id  Int
+  model            String
+  color            String
+  frsc_number      String
+  manufacture_date DateTime?
+  images           String[]
+  verification     Verification @default(pending)
+  created_at       DateTime     @default(now()) @db.Timestamptz(3)
+  updated_at       DateTime?    @updatedAt
+
+  user          User         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  vehicle_brand VehicleBrand @relation(fields: [vehicle_brand_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  vehicle_type  VehicleType  @relation(fields: [vehicle_type_id], references: [id])
+
+  @@map("vehicles")
+}
+
+model License {
+  id             Int          @id @default(autoincrement())
+  user_id        Int          @unique
+  license_number String
+  front_image    String
+  back_image     String
+  verification   Verification @default(pending)
+  expiry         DateTime
+  created_at     DateTime     @default(now()) @db.Timestamptz(3)
+  updated_at     DateTime?    @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+
+  @@map("liscenses")
+}
+
+model Bank {
+  id         Int    @id @default(autoincrement())
+  code       String @unique
+  name       String @unique
+  country_id Int
+
+  country       Country       @relation(fields: [country_id], references: [id])
+  bank_accounts BankAccount[]
+
+  @@map("banks")
+}
+
+model BankAccount {
+  id             Int       @id @default(autoincrement())
+  user_id        Int       @unique
+  account_number String
+  account_name   String
+  bank_id        Int
+  created_at     DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at     DateTime? @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  bank Bank @relation(fields: [bank_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("bank_accounts")
+}
+
+model Referral {
+  id          Int       @id @default(autoincrement())
+  user_id     Int       @unique
+  referrer_id Int
+  created_at  DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime? @updatedAt
+
+  referred User @relation("referrer", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  referrer User @relation("referrals", fields: [referrer_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+
+  @@map("referrals")
+}
+
+model AccountManagement {
+  id         Int       @id @default(autoincrement())
+  user_id    Int       @unique
+  manager_id Int
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  manager User @relation("drivers", fields: [manager_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  driver  User @relation("manager", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("account_managements")
+}
+
+model Supervisor {
+  id            Int       @id @default(autoincrement())
+  manager_id    Int       @unique
+  supervisor_id Int
+  created_at    DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime? @updatedAt
+
+  supervisor      User @relation("account_managers", fields: [supervisor_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  account_manager User @relation("supervisor", fields: [manager_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("supervisors")
+}
+
+model Setting {
+  key        String    @unique
+  value      String
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("settings")
+}
+
+model Promo {
+  id              Int         @id @default(autoincrement())
+  amount          Int
+  code            String      @unique
+  city_id         Int
+  expiry          String
+  is_active       Boolean     @default(true)
+  payment_type    PaymentType @default(amount)
+  description     String?
+  number_of_rides Int?
+
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  city  City         @relation(fields: [city_id], references: [id])
+  users PromoUsers[]
+
+  @@map("promos")
+}
+
+model PromoUsers {
+  promo_id Int
+  user_id  Int
+  user     User  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  promo    Promo @relation(fields: [promo_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([promo_id, user_id])
+  @@map("promo_users")
+}
+
+model Fare {
+  id                 Int       @id @default(autoincrement())
+  location_id        Int
+  vehicle_type_id    Int?
+  base_fare          Int
+  capacity           Int
+  minimum_fare       Int
+  per_minute         Int
+  per_kilometer      Int
+  waiting_time_limit Int
+  waiting_charges    Int
+  apply_peak_fare    Boolean   @default(false)
+  apply_fares        Boolean   @default(false)
+  created_at         DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at         DateTime? @updatedAt
+
+  location     Location     @relation(fields: [location_id], references: [id])
+  vehicle_type VehicleType? @relation(fields: [vehicle_type_id], references: [id])
+
+  night_fare NightFare?
+  peak_fares PeakFare[]
+  trips      Trip[]
+
+  @@map("fares")
+}
+
+model NightFare {
+  id         Int       @id @default(autoincrement())
+  fare_id    Int       @unique
+  start_time String
+  end_time   String
+  multiplier Decimal
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  fare Fare @relation(fields: [fare_id], references: [id])
+
+  @@map("night_fares")
+}
+
+model PeakFare {
+  id         Int       @id @default(autoincrement())
+  fare_id    Int
+  day        String
+  start_time String
+  end_time   String
+  multiplier Decimal
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  fare Fare @relation(fields: [fare_id], references: [id])
+
+  @@map("peak_fares")
+}
+
+model CancelReason {
+  id               Int       @id @default(autoincrement())
+  reason           String
+  groups           String[]
+  is_active        Boolean
+  deductible_score Int
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at       DateTime? @updatedAt
+
+  @@map("cancel_reasons")
+}
+
+model Incentive {
+  id               Int       @id @default(autoincrement())
+  name             String
+  description      String
+  duration         Int
+  rides            Int
+  reward           Int
+  previous_tier_id Int?      @unique
+  is_active        Boolean   @default(false)
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at       DateTime? @updatedAt
+
+  previous_tier Incentive? @relation("prev_tier", fields: [previous_tier_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  next_tier     Incentive? @relation("prev_tier")
+
+  @@map("incentives")
+}
+
+model VehicleBrand {
+  id         Int       @id @default(autoincrement())
+  name       String    @unique
+  is_active  Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  vehicles Vehicle[]
+
+  @@map("vehicle_brands")
+}
+
+model Faq {
+  id         Int      @id @default(autoincrement())
+  question   String   @unique
+  answer     String
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt
+
+  @@map("faqs")
+}
+
+model Notification {
+  id         Int       @id @default(autoincrement())
+  subject    String
+  body       String
+  tags       String[]
+  channel    Channel
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  users UserNotifications[]
+
+  @@map("notifications")
+}
+
+model UserNotifications {
+  user_id         Int
+  notification_id Int
+  status          Status    @default(sent)
+  retry_count     Int       @default(0)
+  created_at      DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime? @updatedAt
+
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  notification Notification @relation(fields: [notification_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([user_id, notification_id])
+  @@map("user_notifications")
+}
+
+model Location {
+  id                  Int                                    @id @default(autoincrement())
+  city_id             Int?
+  name                String
+  is_active           Boolean                                @default(false)
+  coordinates         Unsupported("geometry(Polygon, 4326)")
+  created_at          DateTime                               @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime?                              @updatedAt
+  fares               Fare[]
+  RideRequest         RideRequest[]
+  users               User[]
+  RiderPromo          Discount[]
+  LocationDriverPromo LocationDriverPromo[]
+  city                City?                                  @relation(fields: [city_id], references: [id])
+
+  @@index([coordinates], name: "location_idx", type: Gist)
+  @@map("locations")
+}
+
+model Transaction {
+  id          Int               @id @default(autoincrement())
+  type        TransactionType
+  description String
+  user_id     Int
+  amount      Int
+  currency    String
+  status      TransactionStatus @default(pending)
+  gateway     Gateway
+  reference   String?           @unique
+  created_at  DateTime          @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime?         @updatedAt
+
+  user     User       @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  TripFare TripFare[]
+
+  @@map("transaction")
+}
+
+model Trip {
+  id                 Int           @id @default(autoincrement())
+  status             TripStatus
+  driver_arrival     DateTime?
+  rider_id           Int
+  rider              User          @relation("rider", fields: [rider_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  driver_id          Int
+  driver             User          @relation("driver", fields: [driver_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  pickup_coords      Json
+  destination_coords Json
+  pickup             String
+  destination        String
+  start_date         DateTime?
+  end_date           DateTime?
+  cancelledBy        CancellledBy?
+  cancel_reason      String?
+  duration           Int?
+  trip_fare          TripFare?
+  fare               Fare          @relation(fields: [fare_id], references: [id])
+  fare_id            Int
+  created_at         DateTime      @default(now()) @db.Timestamptz(3)
+  updated_at         DateTime?     @updatedAt
+  review             Review?
+
+  @@map("trips")
+}
+
+model RideRequest {
+  id                 Int               @id @default(autoincrement())
+  status             RideRequestStatus @default(rejected)
+  rider_id           Int
+  rider              User              @relation("rider", fields: [rider_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  driver_id          Int
+  driver             User              @relation("driver", fields: [driver_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  pickup_location_id Int
+  pickup_location    Location          @relation(fields: [pickup_location_id], references: [id])
+  destination        String
+  time               DateTime
+  created_at         DateTime          @default(now()) @db.Timestamptz(3)
+  updated_at         DateTime?         @updatedAt
+
+  @@map("ride_requests")
+}
+
+model TripFare {
+  id                Int          @id @default(autoincrement())
+  trip_id           Int          @unique
+  trip              Trip         @relation(references: [id], fields: [trip_id])
+  currency          String       @default("NGN")
+  base_fare         Int
+  admin_commission  Int
+  driver_commission Int
+  payment_mode      PaymentMode
+  total_fare        Int
+  owe_amount        Int
+  cash_colleted     Int
+  paid              Boolean      @default(false)
+  transaction_id    Int?
+  transaction       Transaction? @relation(references: [id], fields: [transaction_id], onDelete: Cascade, onUpdate: Cascade)
+  created_at        DateTime     @default(now()) @db.Timestamptz(3)
+  updated_at        DateTime?    @updatedAt
+
+  @@map("trip_fare")
+}
+
+model WithdrawalRequests {
+  id Int @id @default(autoincrement())
+
+  user_id Int
+  user    User @relation(references: [id], fields: [user_id], onDelete: NoAction, onUpdate: Cascade)
+
+  amount Float
+  status WithdrawalStatus @default(pending)
+
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("withdrawal_requests")
+}
+
+model Discount {
+  id          Int             @id @default(autoincrement())
+  is_active   Boolean         @default(true)
+  location    Location        @relation(fields: [location_id], references: [id])
+  location_id Int
+  type        DiscountType
+  total       Int?
+  percentage  Int?
+  start_date  DateTime
+  end_date    DateTime
+  no_of_trips Int?
+  created_at  DateTime        @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime?       @updatedAt
+  users       DiscountUsers[]
+
+  @@map("discounts")
+}
+
+model DiscountUsers {
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  discount Discount @relation(fields: [discount_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  used     Boolean  @default(false)
+
+  user_id     Int
+  discount_id Int
+
+  @@id([user_id, discount_id])
+  @@map("discout_users")
+}
+
+model Review {
+  id          Int       @id @default(autoincrement())
+  reviewer_id Int
+  reviewed_id Int
+  reviewer    User      @relation("reviewed", references: [id], fields: [reviewer_id], onDelete: NoAction, onUpdate: Cascade)
+  reviewed    User      @relation("reviews", references: [id], fields: [reviewed_id], onDelete: NoAction, onUpdate: Cascade)
+  created_at  DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime? @updatedAt
+  comment     String?
+  rating      Int
+  trip_id     Int?      @unique
+  trip        Trip?     @relation(fields: [trip_id], references: [id])
+
+  @@map("reviews")
+}
+
+model TimeOnline {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  online     DateTime
+  offline    DateTime
+  time       Int
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("time_online")
+}
+
+model SupportCategory {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  support_questions SupportQuestion[]
+
+  @@map("support_categories")
+}
+
+model DriverPromo {
+  id                     Int                      @id @default(autoincrement())
+  name                   String
+  VehicleTypeDriverPromo VehicleTypeDriverPromo[]
+  LocationDriverPromo    LocationDriverPromo[]
+  trips                  Int
+  online_hours           Int
+  expires_at             DateTime
+  acceptance_rate        Int
+  cancellation_rate      Int
+  driver_score           Int
+  is_active              Boolean                  @default(true)
+
+  created_at      DateTime          @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime?         @updatedAt
+  UserDriverPromo UserDriverPromo[]
+
+  @@map("driver_promos")
+}
+
+model SupportQuestion {
+  id       Int    @id @default(autoincrement())
+  question String
+  answer   String
+
+  category_id Int
+  category    SupportCategory @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("support_questions")
+}
+
+model LocationDriverPromo {
+  location_id     Int
+  driver_promo_id Int
+  assigned_at     DateTime @updatedAt @db.Timestamptz
+
+  location     Location    @relation(fields: [location_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  driver_promo DriverPromo @relation(fields: [driver_promo_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([location_id, driver_promo_id])
+  @@map("location_driver_promos")
+}
+
+model VehicleTypeDriverPromo {
+  vehicle_type_id Int
+  driver_promo_id Int
+  assigned_at     DateTime @updatedAt @db.Timestamptz
+
+  vehicle_type VehicleType @relation(fields: [vehicle_type_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  driver_promo DriverPromo @relation(fields: [driver_promo_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([vehicle_type_id, driver_promo_id])
+  @@map("vehicle_type_driver_promos")
+}
+
+model UserDriverPromo {
+  driver_id       Int
+  driver_promo_id Int
+  assigned_at   DateTime @updatedAt @db.Timestamptz
+
+  driver       User        @relation(fields: [driver_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  driver_promo DriverPromo @relation(fields: [driver_promo_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([driver_id, driver_promo_id])
+  @@map("user_driver_promos")
+}
+
+model MailTemplate {
+  id            Int          @id @default(autoincrement())
+  name          String
+  template_type TemplateType
+  path          String
+  is_active     Boolean
+
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("mail_templates")
+}
+
+model TermsOfService {
+  id        Int           @id @default(autoincrement())
+  title     String
+  is_active Boolean
+  content   String
+  category  TermsCategory
+
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("terms_of_services")
+}
+
+model CredibilityScore {
+  id             Int @id @default(autoincrement())
+  user_id        Int
+  previous_score Int
+  current_score  Int
+
+  driver User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("credibility_score")
+}
